@@ -1,33 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Input;
-using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
 using JenkinsWatcherUni;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Windows.Web.Http;
 using System.Threading;
-using System.Xml.Linq;
-using Windows.Data.Json;
-using Windows.Web.Http.Filters;
-using Windows.Security.Credentials;
-using Windows.Web.Http.Headers;
-//using Microsoft.Azure.Management.KeyVault;
-//using Microsoft.Azure.KeyVault.WebKey;
-//using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Windows.Storage;
+using Windows.Devices.Gpio;
+
+
 
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
@@ -40,27 +24,36 @@ namespace jenkinsWatcher
     public sealed partial class MainPage : Page
     {
 
-        private HttpClient httpClient;
+        // Use GPIO pin 5 to set values
+        private const int SET_PIN = 7;
+        private GpioPin setPin;
+        private GpioPinValue currentValue = GpioPinValue.High;
+        private DispatcherTimer timer;
         private CancellationTokenSource cts;
-        private Windows.Storage.ApplicationData applicationData;
+        private ApplicationData applicationData;
         private StorageFolder localFolder;
-
+        private string url;
+        private string apiToken;
+        private string username;
 
         public MainPage()
         {
             this.InitializeComponent();
-            //DoTheWork();
-            //cts = new CancellationTokenSource();
         }
     
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
-            //Helpers.CreateHttpClient(ref httpClient);
             cts = new CancellationTokenSource();
             applicationData = Windows.Storage.ApplicationData.Current;
             localFolder = applicationData.LocalFolder;
-            DoTheWork();
+            ReadConfig();
+            var jobs = GetAllStatuses();
+            // Start toggling the pin value every 500ms.
+            timer = new DispatcherTimer();
+            timer.Interval = TimeSpan.FromMilliseconds(500);
+            timer.Tick += Timer_Tick;
+            timer.Start();
         }
 
         async Task<string> readConfigFile()
@@ -79,77 +72,32 @@ namespace jenkinsWatcher
             return "There was an error";
         }
 
-        private async void DoTheWork()
+        private async void ReadConfig()
         {
             var configFile = await readConfigFile();
 
             secretConfig  secretConfigInfo = new secretConfig(configFile);
 
             Uri resourceAddress = new Uri(secretConfigInfo.jenkinsUrl);
-            var url = secretConfigInfo.jenkinsUrl;
-            var apiToken = secretConfigInfo.jenkinsApiKey;
-            var username = secretConfigInfo.jenkinsUsername;
+            url = secretConfigInfo.jenkinsUrl;
+            apiToken = secretConfigInfo.jenkinsApiKey;
+            username = secretConfigInfo.jenkinsUsername;
 
-            var myFilter = new HttpBaseProtocolFilter();
-            myFilter.AllowUI = false;
-            myFilter.ServerCredential = new PasswordCredential(url, username, apiToken);
-            httpClient = new HttpClient(myFilter);
+            var jW = new JenkinsWatcherUni.jenkinsWatcher(url, apiToken, username);
 
-            if (!TryGetUri(url, out resourceAddress))
-            {
-                textBlock.Text = "Invalid URI.";
-                return;
-            }
+            var JenkinsJobs = await jW.GetAllStatuses();
+        }
 
-            try
-            {
-                textBlock.Text = resourceAddress.ToString();
-                HttpResponseMessage response = await httpClient.GetAsync(resourceAddress).AsTask(cts.Token);
- 
-                JenkinsObject jenkinsInfo = new JenkinsObject(await response.Content.ReadAsStringAsync().AsTask(cts.Token));
-
-                response.EnsureSuccessStatusCode();
-
-                List<JenkinsJob> jobs = jenkinsInfo.jobs;
-                foreach (JenkinsJob jo in jobs)
-                {
-                    textBlock.Text += (jo.Name + " " + jo.Color);
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                textBlock.Text = "Request Canceled";
-            }
-            catch (Exception ex)
-            {
-                textBlock.Text = "Error: " + ex.Message;
-            }
+        private async Task<List<JenkinsJob>> GetAllStatuses()
+        {
+            var jW = new JenkinsWatcherUni.jenkinsWatcher(url, apiToken, username);
+            return await jW.GetAllStatuses();
         }
 
         private void button_Click(object sender, RoutedEventArgs e)
         {
-            DoTheWork();
-        }
-
-
-        public bool TryGetUri(string uriString, out Uri uri)
-        {
-            // Note that this app has both "Internet (Client)" and "Home and Work Networking" capabilities set,
-            // since the user may provide URIs for servers located on the internet or intranet. If apps only
-            // communicate with servers on the internet, only the "Internet (Client)" capability should be set.
-            // Similarly if an app is only intended to communicate on the intranet, only the "Home and Work
-            // Networking" capability should be set.
-            if (!Uri.TryCreate(uriString.Trim(), UriKind.Absolute, out uri))
-            {
-                return false;
-            }
-
-            if (uri.Scheme != "http" && uri.Scheme != "https")
-            {
-                return false;
-            }
-
-            return true;
+            ReadConfig();
+            var jobs = GetAllStatuses();
         }
 
         public async Task DisplayTextResultAsync(
@@ -190,6 +138,11 @@ namespace jenkinsWatcher
             {
                 output.Append(header.Key + ": " + header.Value + "\r\n");
             }
+        }
+        private void Timer_Tick(object sender, object e)
+        {
+            // Toggle the existing pin value
+
         }
     }
 }
