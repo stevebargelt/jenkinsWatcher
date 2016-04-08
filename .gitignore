@@ -238,3 +238,6 @@ _Pvt_Extensions
 #SecretConfigFile
 secretConfig.config
 
+#Mac Cleanup
+.DS_Store
+
