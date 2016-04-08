@@ -65,13 +65,11 @@ namespace jenkinsWatcher
 
         async Task<string> readConfigFile()
         {
-            var uri = new System.Uri("ms-appx:///secretConfig.config");
             var packageFolder = Windows.ApplicationModel.Package.Current.InstalledLocation;
-            //var configFile = await Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(uri);
             StorageFile configFile;
             try
             {
-                configFile = await packageFolder.GetFileAsync("secretConfig.config");
+                configFile = await packageFolder.GetFileAsync("secretConfig.json");
                 return await Windows.Storage.FileIO.ReadTextAsync(configFile);
             }
             catch (Exception ex)
@@ -83,25 +81,19 @@ namespace jenkinsWatcher
 
         private async void DoTheWork()
         {
-            //var uri = new System.Uri("ms-appx:///secretConfig.config");
-
-            //StorageFile configFile = await  localFolder.GetFileAsync("secretConfig.config");
-            //var contents = await Windows.Storage.FileIO.ReadTextAsync(configFile);
-
             var configFile = await readConfigFile();
 
-            Uri resourceAddress = new Uri("http://");
-            var url = "http://jenkins/api/json";
-            var apiToken = "";
-            var username = "";
+            secretConfig  secretConfigInfo = new secretConfig(configFile);
+
+            Uri resourceAddress = new Uri(secretConfigInfo.jenkinsUrl);
+            var url = secretConfigInfo.jenkinsUrl;
+            var apiToken = secretConfigInfo.jenkinsApiKey;
+            var username = secretConfigInfo.jenkinsUsername;
 
             var myFilter = new HttpBaseProtocolFilter();
             myFilter.AllowUI = false;
             myFilter.ServerCredential = new PasswordCredential(url, username, apiToken);
             httpClient = new HttpClient(myFilter);
-
-            //var vaultcli = new Microsoft.Azure.Management.KeyVault.
-            //keyVaultClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(GetAccessToken), GetHttpClient());
 
             if (!TryGetUri(url, out resourceAddress))
             {
@@ -114,8 +106,6 @@ namespace jenkinsWatcher
                 textBlock.Text = resourceAddress.ToString();
                 HttpResponseMessage response = await httpClient.GetAsync(resourceAddress).AsTask(cts.Token);
  
-                //await DisplayTextResultAsync(response, textBlock, cts.Token);
-
                 JenkinsObject jenkinsInfo = new JenkinsObject(await response.Content.ReadAsStringAsync().AsTask(cts.Token));
 
                 response.EnsureSuccessStatusCode();
