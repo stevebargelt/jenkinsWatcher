@@ -237,6 +237,7 @@ _Pvt_Extensions
 
 #SecretConfigFile
 secretConfig.config
+secretConfig.JSON
 
 #Mac Cleanup
 .DS_Store

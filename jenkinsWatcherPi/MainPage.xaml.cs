@@ -27,6 +27,7 @@ using Windows.Web.Http.Headers;
 //using Microsoft.Azure.Management.KeyVault;
 //using Microsoft.Azure.KeyVault.WebKey;
 //using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Windows.Storage;
 
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
@@ -41,6 +42,9 @@ namespace jenkinsWatcher
 
         private HttpClient httpClient;
         private CancellationTokenSource cts;
+        private Windows.Storage.ApplicationData applicationData;
+        private StorageFolder localFolder;
+
 
         public MainPage()
         {
@@ -54,14 +58,37 @@ namespace jenkinsWatcher
             base.OnNavigatedTo(e);
             //Helpers.CreateHttpClient(ref httpClient);
             cts = new CancellationTokenSource();
+            applicationData = Windows.Storage.ApplicationData.Current;
+            localFolder = applicationData.LocalFolder;
             DoTheWork();
+        }
+
+        async Task<string> readConfigFile()
+        {
+            var uri = new System.Uri("ms-appx:///secretConfig.config");
+            var packageFolder = Windows.ApplicationModel.Package.Current.InstalledLocation;
+            //var configFile = await Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(uri);
+            StorageFile configFile;
+            try
+            {
+                configFile = await packageFolder.GetFileAsync("secretConfig.config");
+                return await Windows.Storage.FileIO.ReadTextAsync(configFile);
+            }
+            catch (Exception ex)
+            {
+                textBlock.Text = "Error: " + ex.Message;
+            }
+            return "There was an error";
         }
 
         private async void DoTheWork()
         {
-            var uri = new System.Uri("ms-appx:///secretConfig.config");
-            var sampleFile = await Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(uri);
-            var contents = await Windows.Storage.FileIO.ReadTextAsync(sampleFile);
+            //var uri = new System.Uri("ms-appx:///secretConfig.config");
+
+            //StorageFile configFile = await  localFolder.GetFileAsync("secretConfig.config");
+            //var contents = await Windows.Storage.FileIO.ReadTextAsync(configFile);
+
+            var configFile = await readConfigFile();
 
             Uri resourceAddress = new Uri("http://");
             var url = "http://jenkins/api/json";
@@ -93,11 +120,11 @@ namespace jenkinsWatcher
 
                 response.EnsureSuccessStatusCode();
 
-            List<JenkinsJob> jobs = jenkinsInfo.jobs;
-            foreach (JenkinsJob jo in jobs)
-            {
-                textBlock.Text += (jo.Name + " " + jo.Color);
-            }
+                List<JenkinsJob> jobs = jenkinsInfo.jobs;
+                foreach (JenkinsJob jo in jobs)
+                {
+                    textBlock.Text += (jo.Name + " " + jo.Color);
+                }
             }
             catch (TaskCanceledException)
             {
