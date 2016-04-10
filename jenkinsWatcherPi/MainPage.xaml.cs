@@ -44,9 +44,8 @@ namespace jenkinsWatcher
             cts = new CancellationTokenSource();
             applicationData = Windows.Storage.ApplicationData.Current;
             localFolder = applicationData.LocalFolder;
-            ReadConfig();
-            //var jW = new JenkinsWatcherUni.jenkinsWatcher(url, apiToken, username);
-            //var jobs = GetAllStatuses();
+            GetConfigValues();
+            jW = new JenkinsWatcherUni.jenkinsWatcher(url, apiToken, username);
             InitGPIO();
             // Start checking Jenkins every minute.
             timer = new DispatcherTimer();
@@ -57,14 +56,18 @@ namespace jenkinsWatcher
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
-  
             timer.Start();
+        }
+
+        protected override void OnNavigatingFrom(NavigatingCancelEventArgs e)
+        {
+            timer.Stop();
+            base.OnNavigatingFrom(e);
         }
 
         private void InitGPIO()
         {
             var gpio = GpioController.GetDefault();
-
             pin = gpio.OpenPin(LIGHT_PIN);
             pin.Write(currentValue);
             pin.SetDriveMode(GpioPinDriveMode.Output);
@@ -86,19 +89,14 @@ namespace jenkinsWatcher
             return "There was an error";
         }
 
-        private async void ReadConfig()
+        private async void GetConfigValues()
         {
             var configFile = await readConfigFile();
-
             secretConfig  secretConfigInfo = new secretConfig(configFile);
-
             Uri resourceAddress = new Uri(secretConfigInfo.jenkinsUrl);
             url = secretConfigInfo.jenkinsUrl;
             apiToken = secretConfigInfo.jenkinsApiKey;
             username = secretConfigInfo.jenkinsUsername;
-
-            jW = new JenkinsWatcherUni.jenkinsWatcher(url, apiToken, username);
-
         }
 
         private async Task<List<JenkinsJob>> GetAllStatuses()
@@ -108,7 +106,7 @@ namespace jenkinsWatcher
 
         private async void button_Click(object sender, RoutedEventArgs e)
         {
-            ReadConfig();
+            GetConfigValues();
             var jobs = await GetAllStatuses();
             textBlock.Text = "";
             foreach (var j in jobs)
