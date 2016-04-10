@@ -29,7 +29,6 @@ namespace jenkinsWatcher
             client = new RestClient(url);
             byte[] credentialBuffer = new UTF8Encoding().GetBytes(username + ":" + apiToken);
             client.AddDefaultHeader("authorization", "Basic " + Convert.ToBase64String(credentialBuffer));
-
         }
 
         public List<Job> GetAllStatuses()
