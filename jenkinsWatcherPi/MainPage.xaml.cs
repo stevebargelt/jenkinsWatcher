@@ -25,9 +25,9 @@ namespace jenkinsWatcher
     {
 
         // Use GPIO pin 5 to set values
-        private const int LIGHT_PIN = 4;
+        private const int LIGHT_PIN = 4; // TODO: Put in config file
         private GpioPin pin;
-        private GpioPinValue currentValue = GpioPinValue.High;
+        private GpioPinValue currentValue = GpioPinValue.Low;
         private DispatcherTimer timer;
         private CancellationTokenSource cts;
         private ApplicationData applicationData;
@@ -128,11 +128,11 @@ namespace jenkinsWatcher
             }
             if (anyFailing)
             {
-                currentValue = GpioPinValue.Low;
+                currentValue = GpioPinValue.High;
             }
             else
             {
-                currentValue = GpioPinValue.High;
+                currentValue = GpioPinValue.Low;
             }
             pin.Write(currentValue);
         }
