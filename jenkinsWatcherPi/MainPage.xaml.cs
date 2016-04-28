@@ -11,9 +11,6 @@ using System.Threading;
 using Windows.Storage;
 using Windows.Devices.Gpio;
 
-
-
-
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
 namespace jenkinsWatcher
@@ -26,6 +23,7 @@ namespace jenkinsWatcher
 
         // Use GPIO pin 5 to set values
         private const int LIGHT_PIN = 4; // TODO: Put in config file
+        private const double SERVICE_CHECK_INTERVAL = 60000; // TODO: Put this in config file
         private GpioPin pin;
         private GpioPinValue currentValue = GpioPinValue.Low;
         private DispatcherTimer timer;
@@ -49,7 +47,7 @@ namespace jenkinsWatcher
             InitGPIO();
             // Start checking Jenkins every minute.
             timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromMilliseconds(60000);
+            timer.Interval = TimeSpan.FromMilliseconds(SERVICE_CHECK_INTERVAL);
             timer.Tick += Timer_Tick;
         }
     
@@ -111,7 +109,7 @@ namespace jenkinsWatcher
             textBlock.Text = "";
             foreach (var j in jobs)
             {
-                textBlock.Text += j.Color + " " + j.Name + "/n"; 
+                textBlock.Text += j.Color + " " + j.Name + "/n /n"; 
             }
 
         }
